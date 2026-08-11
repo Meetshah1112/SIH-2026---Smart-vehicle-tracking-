@@ -7,8 +7,16 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { JourneyPreference, ResolvedLocation, ServiceAlert, UserProfile } from '@/types';
+import type {
+  BusReview,
+  JourneyPreference,
+  RatingBreakdown,
+  ResolvedLocation,
+  ServiceAlert,
+  UserProfile,
+} from '@/types';
 import { USER } from '@/data/alerts';
+import { overallFrom } from '@/data/reviews';
 import { DEFAULT_LOCATION } from '@/services/location';
 import { client } from '@/services/client';
 import { getAlerts } from '@/services/offline';
@@ -56,6 +64,22 @@ interface AppState {
 
   savedPlaceIds: string[];
   toggleSavedPlace: (placeId: string) => void;
+
+  /** Reviews written by this user, newest first. */
+  userReviews: BusReview[];
+  submitReview: (input: SubmitReviewInput) => void;
+  /** Trip records already reviewed, so a journey cannot be rated twice. */
+  reviewedTripIds: string[];
+}
+
+export interface SubmitReviewInput {
+  busId: string;
+  /** The `TripRecord` this review is written against. */
+  tripId: string;
+  /** Human journey label, e.g. "Shimla → Manali · 12 Aug". */
+  journey: string;
+  breakdown: RatingBreakdown;
+  comment: string;
 }
 
 const Ctx = createContext<AppState | null>(null);
@@ -72,6 +96,35 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [trackedBusIds, setTrackedBusIds] = useState<string[]>(['B-9012']);
   const [savedRouteIds, setSavedRouteIds] = useState<string[]>(USER.savedRouteIds);
   const [savedPlaceIds, setSavedPlaceIds] = useState<string[]>(['PL-HADIMBA', 'PL-RIDGE']);
+  const [userReviews, setUserReviews] = useState<BusReview[]>([]);
+  const [reviewedTripIds, setReviewedTripIds] = useState<string[]>([]);
+
+  /**
+   * Record a review against a completed trip.
+   *
+   * Held in memory for the session: there is no backend to POST to yet, and the
+   * point of this state is that the review the passenger just wrote is actually
+   * visible on the vehicle afterwards. `submitReview` is the single seam a real
+   * `POST /v1/vehicles/:id/reviews` slots into.
+   */
+  const submitReview = useCallback((input: SubmitReviewInput) => {
+    const review: BusReview = {
+      id: `UR-${input.tripId}-${input.busId}`,
+      busId: input.busId,
+      author: USER.name,
+      date: new Date().toISOString(),
+      overall: overallFrom(input.breakdown),
+      breakdown: input.breakdown,
+      comment: input.comment.trim(),
+      journey: input.journey,
+      helpfulCount: 0,
+    };
+
+    // Keyed on the trip, so re-rating the same journey corrects the existing
+    // review rather than stacking a second one onto the vehicle's average.
+    setUserReviews((list) => [review, ...list.filter((r) => r.id !== review.id)]);
+    setReviewedTripIds((ids) => (ids.includes(input.tripId) ? ids : [...ids, input.tripId]));
+  }, []);
 
   /* --------------------------- real connectivity -------------------------- */
   useEffect(() => {
@@ -146,8 +199,26 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         setSavedPlaceIds((ids) =>
           ids.includes(placeId) ? ids.filter((i) => i !== placeId) : [...ids, placeId],
         ),
+
+      userReviews,
+      submitReview,
+      reviewedTripIds,
     }),
-    [user, location, online, offlineMode, lastSync, alerts, trackedBusIds, savedRouteIds, savedPlaceIds, setOfflineMode],
+    [
+      user,
+      location,
+      online,
+      offlineMode,
+      lastSync,
+      alerts,
+      trackedBusIds,
+      savedRouteIds,
+      savedPlaceIds,
+      setOfflineMode,
+      userReviews,
+      submitReview,
+      reviewedTripIds,
+    ],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
