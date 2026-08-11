@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bus, Clock, Compass, Search, SearchX, Sparkles, Star, Ticket } from 'lucide-react';
+import { Bookmark, Bus, Clock, Compass, Search, SearchX, Sparkles, Star, Ticket } from 'lucide-react';
 import { Screen, ScreenBody, ScreenHeader, Stack } from '@/components/layout/Screen';
 import { Card, CardLink, SectionHeader } from '@/components/ui/Card';
 import { Chip, ChipRow, Badge } from '@/components/ui/Badge';
@@ -22,7 +22,7 @@ import { formatDistance, haversineKm } from '@/lib/geo';
  * reader is exactly the gap this app exists to close.
  */
 export function ExploreScreen() {
-  const { location } = useApp();
+  const { location, savedPlaceIds } = useApp();
   const [filter, setFilter] = useState<ExploreFilter>('popular');
 
   const places = useAsync(() => getPlaces(filter, location.position), [filter, location.position.lat]);
@@ -39,13 +39,27 @@ export function ExploreScreen() {
         title="Explore Himachal"
         subtitle="Discover places. Plan your journey. Travel smarter."
         actions={
-          <Link
-            to="/search"
-            aria-label="Search"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-ink-2 hover:bg-surface-3"
-          >
-            <Search size={18} strokeWidth={2.2} />
-          </Link>
+          <>
+            {/* Saving happens on these cards, so the saved list has to be reachable
+                from here rather than only buried in Profile. */}
+            <Link
+              to="/saved"
+              aria-label="Saved places"
+              className="relative flex h-9 w-9 items-center justify-center rounded-full text-ink-2 hover:bg-surface-3"
+            >
+              <Bookmark size={18} strokeWidth={2.2} />
+              {savedPlaceIds.length > 0 && (
+                <span className="absolute right-1.5 top-1.5 h-[7px] w-[7px] rounded-full border-2 border-surface bg-brand-600" />
+              )}
+            </Link>
+            <Link
+              to="/search"
+              aria-label="Search"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-ink-2 hover:bg-surface-3"
+            >
+              <Search size={18} strokeWidth={2.2} />
+            </Link>
+          </>
         }
       />
 
