@@ -189,13 +189,13 @@ export interface QrScanResult {
 }
 
 /**
- * A stop QR encodes `himgati://stop/HP-SML-001`. Plain stop ids are accepted too,
+ * A stop QR encodes `routify://stop/HP-SML-001`. Plain stop ids are accepted too,
  * because the code is also printed as text underneath for anyone whose camera
  * cannot focus in poor light.
  */
 export function resolveByQr(payload: string): Promise<QrScanResult> {
   return request('/v1/stops/resolve-qr', () => {
-    const id = payload.trim().replace(/^himgati:\/\/stop\//i, '').toUpperCase();
+    const id = payload.trim().replace(/^routify:\/\/stop\//i, '').toUpperCase();
     const stop = STOP_BY_ID.get(id) ?? STOPS.find((s) => s.smsCode === id);
 
     if (!stop) return { ok: false, error: 'unrecognised' as const };

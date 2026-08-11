@@ -15,7 +15,7 @@ import { scoreColorVar } from '@/components/transit/Green';
  * which street their bus is on could not see the street.
  *
  * Voyager is the same free OSM-derived Carto CDN but renders a real road
- * hierarchy. It is toned down in CSS (see `.himgati-tiles` in index.css) rather
+ * hierarchy. It is toned down in CSS (see `.routify-tiles` in index.css) rather
  * than swapped for a greyscale style, because it is the road *geometry* that was
  * missing, not the colour that was the problem.
  */
@@ -77,7 +77,7 @@ function buildBusIcon(
   cancelled: boolean,
 ): L.DivIcon {
   return L.divIcon({
-    className: 'himgati-marker',
+    className: 'routify-marker',
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
     html: `
@@ -117,7 +117,7 @@ function stopIcon(kind: Stop['kind'], active: boolean): L.DivIcon {
 
   return cachedIcon(`stop:${major}:${active}`, () =>
     L.divIcon({
-      className: 'himgati-marker',
+      className: 'routify-marker',
       iconSize: [size, size],
       iconAnchor: [size / 2, size / 2],
       html: `<span style="
@@ -135,7 +135,7 @@ function userIcon(accurate: boolean): L.DivIcon {
 
 function buildUserIcon(accurate: boolean): L.DivIcon {
   return L.divIcon({
-    className: 'himgati-marker',
+    className: 'routify-marker',
     iconSize: [22, 22],
     iconAnchor: [11, 11],
     html: `<div style="position:relative;width:22px;height:22px">
@@ -154,7 +154,7 @@ function buildUserIcon(accurate: boolean): L.DivIcon {
 function pinIcon(): L.DivIcon {
   return cachedIcon('pin', () =>
     L.divIcon({
-      className: 'himgati-marker',
+      className: 'routify-marker',
       iconSize: [26, 34],
       iconAnchor: [13, 32],
       html: `<svg width="26" height="34" viewBox="0 0 26 34" fill="none">
@@ -188,9 +188,7 @@ function FitBounds({ points, padding = 44 }: { points: LatLng[]; padding?: numbe
       map.fitBounds(boundsOf(points, 0.008), { padding: [padding, padding], animate: true });
     }
     // See `Recenter` — an in-flight fit must not outlive the map it is fitting.
-    return () => {
-      map.stop();
-    };
+    return () => cancelMapAnimation(map);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
@@ -216,14 +214,34 @@ function Recenter({
     if (center) map.setView([center.lat, center.lng], zoom ?? map.getZoom(), { animate: true });
     // An animated pan runs on its own frame loop. If the map is torn down while
     // one is still in flight — navigating away from a bus screen a moment after
-    // it opened — the next frame reads `_leaflet_pos` off a node React has
-    // already removed and throws. `stop()` aborts the animation on the way out.
-    return () => {
-      map.stop();
-    };
+    // it opened — the next frame reads `_leaflet_pos` off a pane Leaflet has
+    // nulled. Cancel the frames on the way out.
+    return () => cancelMapAnimation(map);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [center?.lat, center?.lng, zoom, recenterKey]);
   return null;
+}
+
+/**
+ * Cancel a pending pan or zoom animation, without disturbing the map.
+ *
+ * `Map.stop()` looks like the call for this and is emphatically not: alongside
+ * cancelling the frames it also runs `setZoom(...)`, which on a map already
+ * part-way through teardown reads a pane Leaflet has nulled and throws. Because
+ * that happens synchronously inside an effect cleanup, React escalates it by
+ * unmounting the whole tree — turning a tidy-up into a total app outage where
+ * every later tap and the back button did nothing until a reload.
+ *
+ * `_stop()` cancels the frames and nothing else, which is all that was ever
+ * wanted. Guarded and optional because teardown ordering is not ours to
+ * guarantee, and a cancelled animation is moot once the map is going away.
+ */
+function cancelMapAnimation(map: L.Map): void {
+  try {
+    (map as unknown as { _stop?: () => void })._stop?.();
+  } catch {
+    // Nothing to salvage, and nothing worth escalating.
+  }
 }
 
 function dedupe<T>(items: T[], key: (item: T) => string): T[] {
@@ -322,7 +340,7 @@ export function TransitMap({
         url={TILE_URL}
         attribution={TILE_ATTRIBUTION}
         maxZoom={MAX_TILE_ZOOM}
-        className="himgati-tiles"
+        className="routify-tiles"
         detectRetina
       />
 

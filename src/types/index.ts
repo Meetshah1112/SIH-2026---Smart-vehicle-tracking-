@@ -1,5 +1,5 @@
 /**
- * HimGati domain model.
+ * Routify domain model.
  *
  * These types are deliberately shaped to be a thin, lossless projection of
  * GTFS + GTFS-Realtime so the mock service layer in `src/services` can later be
@@ -19,7 +19,7 @@ export type Timestamp = string;
 
 export type StopKind = 'isbt' | 'bus-stand' | 'stop' | 'halt';
 
-/** GTFS `stops.txt` + HimGati's QR extension. */
+/** GTFS `stops.txt` + Routify's QR extension. */
 export interface Stop {
   id: string; // GTFS stop_id — printed on the physical QR plate, e.g. HP-SML-001
   name: string;
@@ -318,7 +318,7 @@ export interface UserProfile {
 /* ------------------------------- location -------------------------------- */
 
 /**
- * The six ways HimGati can establish "where the user is". GPS is only one of
+ * The six ways Routify can establish "where the user is". GPS is only one of
  * them — in the hills it is frequently the worst one.
  */
 export type LocationMethod = 'gps' | 'landmark' | 'map-pin' | 'stop-search' | 'qr' | 'route-number';

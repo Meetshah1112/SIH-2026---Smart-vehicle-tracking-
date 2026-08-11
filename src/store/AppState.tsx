@@ -68,14 +68,20 @@ interface AppState {
   /** Reviews written by this user, newest first. */
   userReviews: BusReview[];
   submitReview: (input: SubmitReviewInput) => void;
+  deleteReview: (reviewId: string) => void;
+  /** The user's own review of a bus, if they have written one. */
+  myReviewFor: (busId: string) => BusReview | undefined;
   /** Trip records already reviewed, so a journey cannot be rated twice. */
   reviewedTripIds: string[];
 }
 
 export interface SubmitReviewInput {
   busId: string;
-  /** The `TripRecord` this review is written against. */
-  tripId: string;
+  /**
+   * The `TripRecord` this review is written against, when there is one. Reviews
+   * are keyed on it so re-rating the same journey edits rather than duplicates.
+   */
+  tripId?: string;
   /** Human journey label, e.g. "Shimla → Manali · 12 Aug". */
   journey: string;
   breakdown: RatingBreakdown;
@@ -109,7 +115,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
    */
   const submitReview = useCallback((input: SubmitReviewInput) => {
     const review: BusReview = {
-      id: `UR-${input.tripId}-${input.busId}`,
+      // One review per user per vehicle, so submitting again edits the existing
+      // one instead of stacking a second onto the vehicle's average.
+      id: `UR-${input.busId}`,
       busId: input.busId,
       author: USER.name,
       date: new Date().toISOString(),
@@ -120,10 +128,17 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       helpfulCount: 0,
     };
 
-    // Keyed on the trip, so re-rating the same journey corrects the existing
-    // review rather than stacking a second one onto the vehicle's average.
     setUserReviews((list) => [review, ...list.filter((r) => r.id !== review.id)]);
-    setReviewedTripIds((ids) => (ids.includes(input.tripId) ? ids : [...ids, input.tripId]));
+    if (input.tripId) {
+      setReviewedTripIds((ids) => (ids.includes(input.tripId!) ? ids : [...ids, input.tripId!]));
+    }
+  }, []);
+
+  const deleteReview = useCallback((reviewId: string) => {
+    setUserReviews((list) => list.filter((r) => r.id !== reviewId));
+    // Only the user's own reviews are removable, and only they carry a trip
+    // linkage, so releasing it re-opens the "rate this journey" prompt.
+    setReviewedTripIds((ids) => ids.filter((id) => !reviewId.endsWith(id)));
   }, []);
 
   /* --------------------------- real connectivity -------------------------- */
@@ -202,6 +217,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
       userReviews,
       submitReview,
+      deleteReview,
+      myReviewFor: (busId) => userReviews.find((r) => r.busId === busId),
       reviewedTripIds,
     }),
     [
@@ -217,6 +234,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setOfflineMode,
       userReviews,
       submitReview,
+      deleteReview,
       reviewedTripIds,
     ],
   );

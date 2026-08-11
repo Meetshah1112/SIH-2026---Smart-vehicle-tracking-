@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Signal, Wifi, WifiOff } from 'lucide-react';
 import { BottomNav } from './BottomNav';
+import { ErrorBoundary } from './ErrorBoundary';
 import { useApp } from '@/store/AppState';
 import { hhmm24 } from '@/lib/format';
 import { cn } from '@/lib/cn';
@@ -80,8 +81,14 @@ export function AppShell() {
 
         <ConnectivityStrip />
 
+        {/*
+          Keyed on the path so a contained error clears itself as soon as the user
+          navigates away, rather than sticking to the frame for the session.
+        */}
         <main className="relative flex min-h-0 flex-1 flex-col">
-          <Outlet />
+          <ErrorBoundary key={pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </main>
 
         {!fullBleed && <BottomNav />}
@@ -109,7 +116,7 @@ function ScreenDirectory() {
           <Logo />
           <div>
             <div className="font-display text-[15px] font-extrabold leading-none text-white">
-              HimGati
+              Routify
             </div>
             <div className="mt-1 text-[10.5px] leading-none text-white/45">
               Smart transit · Himachal
