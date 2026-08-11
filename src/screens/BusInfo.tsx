@@ -28,6 +28,7 @@ import {
   EtaDisplay,
   FreshnessLine,
   StatusBadge,
+  TrafficLine,
 } from '@/components/transit/Eta';
 import { RouteTimeline } from '@/components/transit/RouteTimeline';
 import { AlertStrip } from '@/components/transit/AlertCard';
@@ -176,7 +177,8 @@ export function BusInfoScreen() {
               </div>
             )}
 
-            <FreshnessLine live={pos} className="mt-3" />
+            <TrafficLine live={pos} className="mt-2.5" />
+            <FreshnessLine live={pos} className="mt-2" />
 
             <div className="mt-4 grid grid-cols-3 gap-3 border-t border-line pt-3.5">
               <Stat
