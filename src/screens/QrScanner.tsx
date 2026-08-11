@@ -286,7 +286,7 @@ export function QrScannerScreen() {
                 tone="warn"
                 icon={<QrCode size={20} strokeWidth={2} />}
                 title="Code not recognised"
-                body="That is not a HimGati stop plate, or the code is damaged. Every plate also has its stop id printed underneath — you can type that instead."
+                body="That is not a Routify stop plate, or the code is damaged. Every plate also has its stop id printed underneath — you can type that instead."
                 actions={
                   <>
                     <Button block onClick={() => setManual(true)}>
@@ -382,7 +382,7 @@ function Viewfinder({ phase }: { phase: Phase }) {
 
           {/* sweeping scan line */}
           {phase === 'scanning' && (
-            <span className="absolute inset-x-4 top-0 h-[2px] animate-[himgati-scan_2.4s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-brand-300 to-transparent" />
+            <span className="absolute inset-x-4 top-0 h-[2px] animate-[routify-scan_2.4s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-brand-300 to-transparent" />
           )}
 
           {phase === 'resolving' && (
@@ -400,7 +400,7 @@ function Viewfinder({ phase }: { phase: Phase }) {
       </div>
 
       <style>{`
-        @keyframes himgati-scan {
+        @keyframes routify-scan {
           0%, 100% { transform: translateY(8px); opacity: 0; }
           12% { opacity: 1; }
           50% { transform: translateY(198px); opacity: 1; }

@@ -211,7 +211,7 @@ export function SmartLocationScreen() {
 const GPS_FAILURE_COPY: Record<GpsFailure, { title: string; body: string }> = {
   denied: {
     title: 'Location permission is off',
-    body: 'HimGati cannot read your position. You can turn it on in your browser settings, or simply use one of the other five methods — they work just as well.',
+    body: 'Routify cannot read your position. You can turn it on in your browser settings, or simply use one of the other five methods — they work just as well.',
   },
   unavailable: {
     title: 'No satellite fix',

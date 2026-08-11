@@ -62,7 +62,7 @@ export function HomeScreen() {
       <div className="shrink-0 bg-surface px-4 pb-4 pt-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[13px] font-medium text-ink-3">{greeting()} 👋</p>
+            <p className="text-[13px] font-medium text-ink-3">{greeting()}</p>
             <h1 className="mt-0.5 font-display text-[23px] font-extrabold leading-tight tracking-[-0.025em] text-ink">
               Where are you going?
             </h1>

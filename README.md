@@ -1,8 +1,8 @@
-# 🚌 HimGati
+# 🚌 Routify
 
 ### Know where your bus is. Know when it'll reach you. Know how clean it is.
 
-HimGati is a smart bus-tracking app built for Himachal Pradesh — a place where GPS gets confused by the mountains and mobile signal disappears for miles at a time. So instead of just showing a dot on a map and hoping for the best, HimGati tells you the *truth*: exactly how sure it is about where your bus is, and gives you five other ways to find your stop when GPS gives up.
+Routify is a smart bus-tracking app built for Himachal Pradesh — a place where GPS gets confused by the mountains and mobile signal disappears for miles at a time. So instead of just showing a dot on a map and hoping for the best, Routify tells you the *truth*: exactly how sure it is about where your bus is, and gives you five other ways to find your stop when GPS gives up.
 
 Built for **SIH 2026**.
 
@@ -47,7 +47,7 @@ Once it's open, try this in order:
 
 If you've ever waited at a bus stop in the hills, you know the feeling: *has the bus already left? Is it 5 minutes away or 50? Did a landslide cancel it?*
 
-Every existing transit app struggles here for two reasons — **the mountains block GPS**, and **mobile network just disappears** for long stretches. HimGati is designed around that reality instead of ignoring it.
+Every existing transit app struggles here for two reasons — **the mountains block GPS**, and **mobile network just disappears** for long stretches. Routify is designed around that reality instead of ignoring it.
 
 **1. GPS is just one option, not the only one.**
 You can find your bus stop by GPS, by searching the stop name, by typing a nearby landmark ("near the temple"), by dropping a pin on the map, by scanning a QR code at the stop, or just by typing the bus's route number — no location needed at all.
