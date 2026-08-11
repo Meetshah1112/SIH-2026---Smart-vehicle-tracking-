@@ -131,7 +131,106 @@ export const PLACE_PHOTOS: Record<string, PlacePhoto> = {
     license: 'CC BY 4.0',
     source: `${COMMONS}Dainis_Matisons,_Water_Garden_of_Norbulingka_Institute,_Dharamsala.jpg`,
   },
+  'PL-VASHISHT': {
+    file: 'PL-VASHISHT.jpg',
+    author: 'Sharvipul',
+    license: 'CC BY-SA 4.0',
+    source: `${COMMONS}Vashisht_temple_near_manali.jpg`,
+  },
+  'PL-OLD-MANALI': {
+    file: 'PL-OLD-MANALI.jpg',
+    author: 'Aslam Kuttayi',
+    license: 'CC BY-SA 4.0',
+    source: `${COMMONS}Old_Manali_2.jpg`,
+  },
+  'PL-MALL-MNL': {
+    file: 'PL-MALL-MNL.jpg',
+    author: 'TheSlumPanda',
+    license: 'CC BY-SA 4.0',
+    source: `${COMMONS}Mall_Road,_Manali,_Himachal_Pradesh.jpg`,
+  },
+  // The Himalayan Nature Park *is* the Kufri zoo, and its brown bears are what
+  // people go to see — this is a photograph taken inside that park.
+  'PL-HIM-NATURE': {
+    file: 'PL-HIM-NATURE.jpg',
+    author: 'Ganesh Mohan T',
+    license: 'CC BY-SA 4.0',
+    source: `${COMMONS}Himalayan_brown_bear_at_Kufri_Zoo_01.jpg`,
+  },
+  // Commons has no exterior of the museum building, so this is from the
+  // collection inside it: a Chamba necklace, photographed in that gallery.
+  'PL-HP-MUSEUM': {
+    file: 'PL-HP-MUSEUM.jpg',
+    author: 'SpeakingArch',
+    license: 'CC BY-SA 4.0',
+    source: `${COMMONS}Chamba_Necklace,_Himachal_State_Museum,_Shimla.jpg`,
+  },
+  // The only freely-licensed depiction of Lakkar Bazaar in existence on Commons
+  // is a hand-tinted period postcard. It is genuinely this street, and captioned
+  // as such — but it is a postcard, not a photograph. Replace it if a modern
+  // photo is ever uploaded.
+  'PL-LAKKAR': {
+    file: 'PL-LAKKAR.jpg',
+    author: 'Paper Jewels',
+    license: 'CC BY-SA 4.0',
+    source: `${COMMONS}Lakkar_Bazaar,_Simla_Postcard.jpg`,
+  },
+  'PL-CHAIL-GROUND': {
+    file: 'PL-CHAIL-GROUND.jpg',
+    author: 'Kavittaa',
+    license: 'CC BY-SA 4.0',
+    source: `${COMMONS}View_from_the_backside_of_Kali_Tibba_Temple,_Chail,_Himachal_Pradesh.jpg`,
+  },
+  'PL-SHOOLINI': {
+    file: 'PL-SHOOLINI.jpg',
+    author: 'Abhyuday Bhandari',
+    license: 'CC BY-SA 4.0',
+    source: `${COMMONS}Jatoli_Shiv_Temple.jpg`,
+  },
+  'PL-BHUTNATH': {
+    file: 'PL-BHUTNATH.jpg',
+    author: 'Aranya Kar',
+    license: 'CC BY-SA 4.0',
+    source: `${COMMONS}Panchvaktra_Temple,_Mandi_(FRONT_VIEW)_01.jpg`,
+  },
+  'PL-INDIRA-MKT': {
+    file: 'PL-INDIRA-MKT.jpg',
+    author: 'John Hill',
+    license: 'CC BY-SA 4.0',
+    source: `${COMMONS}Clock_Tower,_Mandi,_HP,_India.jpg`,
+  },
+  'PL-CAFE-SOL': {
+    file: 'PL-CAFE-SOL.jpg',
+    author: 'Sumita Roy Dutta',
+    license: 'CC BY-SA 4.0',
+    source: `${COMMONS}Indian_Coffee_House_Shimla.jpg`,
+  },
+  'PL-CAFE-KULLU': {
+    file: 'PL-CAFE-KULLU.jpg',
+    author: 'Rajani Gairshail',
+    license: 'CC BY-SA 4.0',
+    source: `${COMMONS}Kullu_Bazaar_Market_in_Himachal_Pradesh,1.jpg`,
+  },
 };
+
+/**
+ * Guard against a place quietly losing its photograph.
+ *
+ * Every place is expected to have one now — an illustration on screen is the bug
+ * this map exists to prevent, and adding a place without adding its photo would
+ * reintroduce one silently. Dev-only, because a missing file is a authoring
+ * mistake to catch while editing, not a runtime condition to handle.
+ */
+if (import.meta.env.DEV) {
+  void import('./places').then(({ PLACES }) => {
+    const missing = PLACES.filter((p) => !PLACE_PHOTOS[p.id]).map((p) => `${p.id} (${p.name})`);
+    if (missing.length > 0) {
+      console.warn(
+        `[Routify] ${missing.length} place(s) have no photograph and will fall back to the illustration:\n  ${missing.join('\n  ')}`,
+      );
+    }
+  });
+}
 
 export function photoFor(placeId: string): PlacePhoto | undefined {
   return PLACE_PHOTOS[placeId];
