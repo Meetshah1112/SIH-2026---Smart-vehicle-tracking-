@@ -224,7 +224,7 @@ export function SearchScreen() {
 
             {results.vehicles.length > 0 && (
               <section>
-                <SectionHeader title="Buses" hint="Tracked by registration or route number" />
+                <SectionHeader title="Buses" />
                 <List>
                   {results.vehicles.map((lb) => (
                     <ListRow

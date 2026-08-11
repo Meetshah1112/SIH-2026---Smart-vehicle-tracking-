@@ -26,9 +26,8 @@ import { GreenScoreCard } from '@/components/transit/Green';
 import {
   ConfidenceNote,
   EtaDisplay,
-  FreshnessLine,
+  LiveStatusLine,
   StatusBadge,
-  TrafficLine,
 } from '@/components/transit/Eta';
 import { RouteTimeline } from '@/components/transit/RouteTimeline';
 import { AlertStrip } from '@/components/transit/AlertCard';
@@ -40,7 +39,7 @@ import { STOP_BY_ID, stopName } from '@/data/stops';
 import { routeDistanceKm } from '@/data/routes';
 import { CATEGORY_LABEL } from '@/data/routeLabels';
 import { co2SavedKg, EMISSION_FACTORS, FUEL_LABEL, NORM_NOTE, busEmissionFactor } from '@/lib/green';
-import { delayLabel } from '@/lib/eta';
+
 import { OCCUPANCY_LABEL, OCCUPANCY_LEVEL, duration, kg, rupees } from '@/lib/format';
 import { formatDistance } from '@/lib/geo';
 import { shareLink } from '@/lib/share';
@@ -147,7 +146,11 @@ export function BusInfoScreen() {
             </Notice>
           )}
 
-          {routeAlert && <AlertStrip alert={routeAlert} />}
+          {/* A route-wide notice is only worth the space when it is not already
+              contradicted by this vehicle's own live status. Showing "Route 42B
+              delayed 15 minutes" above a card reading "On time" made the screen
+              argue with itself. */}
+          {routeAlert && pos.delayMin >= 5 && <AlertStrip alert={routeAlert} />}
 
           {/* ---------------------------- live block --------------------------- */}
           <Card>
@@ -169,7 +172,6 @@ export function BusInfoScreen() {
                   Arrives at {nextStop?.name.replace(/,.*$/, '') ?? 'next stop'}
                 </div>
                 <EtaDisplay prediction={next} size="lg" className="mt-1.5" />
-                <ConfidenceNote confidence={next.confidence} />
               </div>
             ) : (
               <div className="mt-4 font-display text-[20px] font-bold text-ink-3">
@@ -177,10 +179,16 @@ export function BusInfoScreen() {
               </div>
             )}
 
-            <TrafficLine live={pos} className="mt-2.5" />
-            <FreshnessLine live={pos} className="mt-2" />
+            {/* One live line, then the confidence footnote only when the number
+                actually carries a caveat. Three stacked explanations under a
+                single figure is what made this screen hard to read. */}
+            <LiveStatusLine live={pos} className="mt-2.5" />
+            {next && <ConfidenceNote confidence={next.confidence} live={pos} />}
 
-            <div className="mt-4 grid grid-cols-3 gap-3 border-t border-line pt-3.5">
+            {/* Two facts, not three. The old third column read "Schedule /
+                On time / Running to schedule" — the same thing said twice, under
+                a heading, directly below a pill already reading "On time". */}
+            <div className="mt-4 grid grid-cols-2 gap-3 border-t border-line pt-3.5">
               <Stat
                 label="Now near"
                 value={
@@ -192,13 +200,7 @@ export function BusInfoScreen() {
               <Stat
                 label="Remaining"
                 value={formatDistance(remainingKm)}
-                hint={`${route.stopIds.length - pos.nextStopIndex} stops left`}
-              />
-              <Stat
-                label="Schedule"
-                value={pos.delayMin >= 5 ? `+${Math.round(pos.delayMin)} min` : 'On time'}
-                tone={pos.delayMin >= 5 ? 'warn' : 'ok'}
-                hint={delayLabel(pos.delayMin)}
+                hint={`${route.stopIds.length - pos.nextStopIndex} stops to go`}
               />
             </div>
           </Card>
@@ -229,7 +231,6 @@ export function BusInfoScreen() {
           <section>
             <SectionHeader
               title="Stops and arrival times"
-              hint="Every stop carries its own confidence mark"
               action={showFullRoute ? 'Show less' : `All ${route.stopIds.length} stops`}
               onAction={() => setShowFullRoute((v) => !v)}
             />

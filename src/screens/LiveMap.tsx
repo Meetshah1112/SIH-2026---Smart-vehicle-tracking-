@@ -15,7 +15,7 @@ import { DockedSheet } from '@/components/ui/Sheet';
 import { Chip, ChipRow, StatusPill } from '@/components/ui/Badge';
 import { TransitMap } from '@/components/map/TransitMap';
 import { GreenStrip } from '@/components/transit/Green';
-import { EtaDisplay, FreshnessLine, StatusBadge } from '@/components/transit/Eta';
+import { EtaDisplay, LiveStatusLine, StatusBadge } from '@/components/transit/Eta';
 import { OccupancyMeter } from '@/components/ui/Meters';
 import { StateBlock } from '@/components/ui/States';
 import type { LatLng } from '@/types';
@@ -268,7 +268,7 @@ export function LiveMapScreen() {
                   <StatusBadge status={selected.live.status} delayMin={selected.live.delayMin} />
                 </div>
 
-                <FreshnessLine live={selected.live} className="mt-2" />
+                <LiveStatusLine live={selected.live} className="mt-2" />
 
                 <div className="mt-3 flex items-center gap-2 border-t border-line pt-3">
                   <GreenStrip

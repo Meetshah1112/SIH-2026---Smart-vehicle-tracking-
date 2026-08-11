@@ -108,7 +108,7 @@ export function SmartLocationScreen() {
           <section>
             <SectionHeader
               title="How should we find you?"
-              hint="Each method states the accuracy it can honestly claim"
+              hint="Each one says how precise it can be"
             />
             <div className="grid grid-cols-2 gap-2.5">
               {METHODS.map(({ id, icon: Icon }) => (
