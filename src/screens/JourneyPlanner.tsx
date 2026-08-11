@@ -53,6 +53,9 @@ export function JourneyPlannerScreen() {
   const routerState = (useRouterLocation().state ?? {}) as {
     fromStopId?: string | null;
     toStopId?: string | null;
+    /** Set when the destination came from a place rather than a stop search. */
+    toPlaceName?: string;
+    toWalkMin?: number;
   };
   const { location, user } = useApp();
 
@@ -111,6 +114,11 @@ export function JourneyPlannerScreen() {
     setToId(fromId);
   };
 
+  const placeContext =
+    routerState.toPlaceName != null
+      ? { name: routerState.toPlaceName, walkMin: routerState.toWalkMin ?? 0 }
+      : null;
+
   // Only consulted when the planner came back empty.
   const reverseCorridor = useMemo(
     () => (fromId && toId ? reverseOnlyCorridor(fromId, toId) : null),
@@ -142,6 +150,21 @@ export function JourneyPlannerScreen() {
               className="pr-12"
             />
           </div>
+
+          {/*
+            When the destination was prefilled from a place, say so. Otherwise the
+            planner silently shows a bus stand the user never typed and never
+            mentioned — the stop is right, but the reason for it is invisible.
+          */}
+          {placeContext && to?.id === routerState.toStopId && (
+            <div className="mt-2 flex items-start gap-1.5 text-[11.5px] leading-snug text-ink-3">
+              <Footprints size={12} strokeWidth={2.4} className="mt-px shrink-0 text-brand-600" />
+              <span>
+                Nearest stop to <span className="font-semibold text-ink-2">{placeContext.name}</span>
+                {placeContext.walkMin > 0 && <> · {placeContext.walkMin} min walk at the far end</>}
+              </span>
+            </div>
+          )}
 
           <button
             onClick={swap}
