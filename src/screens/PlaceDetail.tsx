@@ -88,6 +88,21 @@ export function PlaceDetailScreen() {
   const saved = savedPlaceIds.includes(p.id);
   const distanceFromUser = haversineKm(location.position, p.position);
 
+  /**
+   * Prefilled journey for the planner.
+   *
+   * A place is not a stop, so "Start journey" used to drop the user into an empty
+   * planner and make them work out for themselves which stand serves the temple
+   * they were just reading about. The alighting stop is already known here —
+   * `nearestStopId` is part of the place record — so it travels with the link.
+   * `from` is left to the planner, which defaults to wherever the user is.
+   */
+  const journeyToHere = {
+    toStopId: p.nearestStopId,
+    toPlaceName: p.name,
+    toWalkMin: p.walkFromStopMin,
+  };
+
   return (
     <Screen>
       {/* -------------------------------- hero -------------------------------- */}
@@ -193,6 +208,7 @@ export function PlaceDetailScreen() {
               hint="Live service to the nearest stop"
               action="Plan full journey"
               actionTo="/plan"
+              actionState={journeyToHere}
             />
 
             <Card className="border-brand-200">
@@ -259,9 +275,9 @@ export function PlaceDetailScreen() {
                 )}
               </div>
 
-              <ButtonLink to="/plan" block size="lg" className="mt-3">
+              <ButtonLink to="/plan" state={journeyToHere} block size="lg" className="mt-3">
                 <Navigation size={16} strokeWidth={2.3} />
-                Start journey
+                Start journey to {stop?.name.replace(/,.*$/, '') ?? 'the nearest stop'}
               </ButtonLink>
             </Card>
           </section>
