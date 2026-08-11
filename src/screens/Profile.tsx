@@ -152,21 +152,36 @@ export function ProfileScreen() {
                   />
                 );
               })}
+              {/* Points at the saved list, not the whole catalogue: this used to
+                  link to Explore, which is the opposite of "the ones I kept". */}
               <ListRow
-                to="/explore"
+                to="/saved"
                 icon={<Bookmark size={15} strokeWidth={2.3} />}
-                title={`${savedPlaceIds.length} saved destinations`}
-                subtitle={savedPlaceIds
-                  .map((id) => PLACE_BY_ID.get(id)?.name)
-                  .filter(Boolean)
-                  .slice(0, 2)
-                  .join(', ')}
+                title={
+                  savedPlaceIds.length > 0
+                    ? `${savedPlaceIds.length} saved destination${savedPlaceIds.length === 1 ? '' : 's'}`
+                    : 'No saved destinations yet'
+                }
+                subtitle={
+                  savedPlaceIds.length > 0
+                    ? savedPlaceIds
+                        .map((id) => PLACE_BY_ID.get(id)?.name)
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .join(', ')
+                    : 'Bookmark a place to keep it here'
+                }
               />
             </List>
           </section>
 
           <section>
-            <SectionHeader title="Saved routes" hint={`${savedRouteIds.length} routes`} />
+            <SectionHeader
+              title="Saved routes"
+              hint={`${savedRouteIds.length} routes`}
+              action="See all saved"
+              actionTo="/saved"
+            />
             <List>
               {savedRouteIds.map((id) => {
                 const r = ROUTE_BY_ID.get(id);
