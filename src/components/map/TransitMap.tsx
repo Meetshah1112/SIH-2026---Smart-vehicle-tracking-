@@ -184,9 +184,13 @@ function FitBounds({ points, padding = 44 }: { points: LatLng[]; padding?: numbe
     if (points.length === 0) return;
     if (points.length === 1) {
       map.setView([points[0].lat, points[0].lng], 14, { animate: true });
-      return;
+    } else {
+      map.fitBounds(boundsOf(points, 0.008), { padding: [padding, padding], animate: true });
     }
-    map.fitBounds(boundsOf(points, 0.008), { padding: [padding, padding], animate: true });
+    // See `Recenter` — an in-flight fit must not outlive the map it is fitting.
+    return () => {
+      map.stop();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
@@ -210,6 +214,13 @@ function Recenter({
   const map = useMap();
   useEffect(() => {
     if (center) map.setView([center.lat, center.lng], zoom ?? map.getZoom(), { animate: true });
+    // An animated pan runs on its own frame loop. If the map is torn down while
+    // one is still in flight — navigating away from a bus screen a moment after
+    // it opened — the next frame reads `_leaflet_pos` off a node React has
+    // already removed and throws. `stop()` aborts the animation on the way out.
+    return () => {
+      map.stop();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [center?.lat, center?.lng, zoom, recenterKey]);
   return null;
