@@ -42,8 +42,17 @@ export function HomeScreen() {
   const { location, alerts, unreadAlerts } = useApp();
 
   const departures = useDepartures(location.stopId, 3);
-  const nearby = useAsync(() => getNearbyStops(location.position, 4), [location.position.lat]);
-  const places = useAsync(() => getPlaces('popular', location.position), [location.position.lat]);
+  // Both coordinates: keying on latitude alone leaves nearby stops and places
+  // stale whenever the user moves along a parallel — which is exactly what
+  // travelling the Shimla–Narkanda corridor does.
+  const nearby = useAsync(
+    () => getNearbyStops(location.position, 4),
+    [location.position.lat, location.position.lng],
+  );
+  const places = useAsync(
+    () => getPlaces('popular', location.position),
+    [location.position.lat, location.position.lng],
+  );
 
   const activeAlert = alerts.find((a) => a.severity !== 'info' && !a.read);
   const month = summarise(tripsWithin(TRIPS, 30));
@@ -126,12 +135,7 @@ export function HomeScreen() {
             {departures.length > 0 ? (
               <div className="space-y-2.5">
                 {departures.map(({ live, prediction }) => (
-                  <BusCard
-                    key={live.bus.id}
-                    live={live}
-                    prediction={prediction}
-                    stopName={location.label.replace(/,.*$/, '')}
-                  />
+                  <BusCard key={live.bus.id} live={live} prediction={prediction} />
                 ))}
               </div>
             ) : (

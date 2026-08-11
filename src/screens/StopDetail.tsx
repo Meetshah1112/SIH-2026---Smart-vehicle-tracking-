@@ -30,7 +30,7 @@ import { useApp } from '@/store/AppState';
 import { STOP_BY_ID } from '@/data/stops';
 import { routesServingStop } from '@/data/routes';
 import { placesNearStop, CATEGORY_LABEL } from '@/data/places';
-import { getTimetable, smsReply, upcomingTimetable } from '@/services/transit';
+import { getTimetable, platformFor, smsReply, upcomingTimetable } from '@/services/transit';
 import { resolveByStop } from '@/services/location';
 import { formatDistance, haversineKm, walkMinutes } from '@/lib/geo';
 import { pretty24 } from '@/lib/format';
@@ -190,13 +190,12 @@ export function StopDetailScreen() {
             {tab === 'live' ? (
               departures.length > 0 ? (
                 <div className="space-y-2.5">
-                  {departures.map(({ live, prediction }, i) => (
+                  {departures.map(({ live, prediction }) => (
                     <BusCard
                       key={live.bus.id}
                       live={live}
                       prediction={prediction}
-                      stopName={stop.name.replace(/,.*$/, '')}
-                      platform={stop.platforms?.[i % stop.platforms.length]}
+                      platform={platformFor(stop, live.bus.id)}
                     />
                   ))}
                 </div>

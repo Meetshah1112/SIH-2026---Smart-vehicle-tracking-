@@ -20,6 +20,28 @@ const TILE_ATTRIBUTION =
 
 /* ------------------------------- markers ---------------------------------- */
 
+/**
+ * Icon cache.
+ *
+ * The fleet snapshot is replaced every second, so every render produced a fresh
+ * `L.DivIcon` for every marker — and react-leaflet reacts to a new icon prop by
+ * calling `setIcon`, which tears down and rebuilds the marker's DOM. That is the
+ * whole fleet re-created once a second for markers that mostly have not changed.
+ *
+ * A `DivIcon` is stateless with respect to the markers using it (`createIcon`
+ * builds a fresh node per marker), so identical icons can safely be shared.
+ */
+const iconCache = new Map<string, L.DivIcon>();
+
+function cachedIcon(key: string, build: () => L.DivIcon): L.DivIcon {
+  let icon = iconCache.get(key);
+  if (!icon) {
+    icon = build();
+    iconCache.set(key, icon);
+  }
+  return icon;
+}
+
 function busIcon(live: LiveBus, selected: boolean): L.DivIcon {
   const stale = live.live.status === 'signal-lost';
   const cancelled = live.live.status === 'cancelled';
@@ -31,6 +53,20 @@ function busIcon(live: LiveBus, selected: boolean): L.DivIcon {
 
   const size = selected ? 42 : 34;
 
+  return cachedIcon(
+    `bus:${live.route.shortName}:${colour}:${size}:${stale}:${cancelled}`,
+    () => buildBusIcon(live.route.shortName, colour, size, selected, stale, cancelled),
+  );
+}
+
+function buildBusIcon(
+  shortName: string,
+  colour: string,
+  size: number,
+  selected: boolean,
+  stale: boolean,
+  cancelled: boolean,
+): L.DivIcon {
   return L.divIcon({
     className: 'himgati-marker',
     iconSize: [size, size],
@@ -52,7 +88,7 @@ function busIcon(live: LiveBus, selected: boolean): L.DivIcon {
           <span style="
             font:800 ${selected ? 11 : 9.5}px/1 'Plus Jakarta Sans',system-ui,sans-serif;
             color:${colour};letter-spacing:-.02em;
-          ">${live.route.shortName}</span>
+          ">${shortName}</span>
         </span>
         ${
           stale || cancelled
@@ -70,19 +106,25 @@ function stopIcon(kind: Stop['kind'], active: boolean): L.DivIcon {
   const major = kind === 'isbt' || kind === 'bus-stand';
   const size = major ? 14 : 10;
 
-  return L.divIcon({
-    className: 'himgati-marker',
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-    html: `<span style="
+  return cachedIcon(`stop:${major}:${active}`, () =>
+    L.divIcon({
+      className: 'himgati-marker',
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size / 2],
+      html: `<span style="
       display:block;width:${size}px;height:${size}px;border-radius:50%;
       background:#fff;border:${major ? 3 : 2.5}px solid ${active ? 'var(--color-brand-600)' : 'var(--color-ink-3)'};
       box-shadow:0 1px 3px rgba(12,20,36,.2);
     "></span>`,
-  });
+    }),
+  );
 }
 
 function userIcon(accurate: boolean): L.DivIcon {
+  return cachedIcon(`user:${accurate}`, () => buildUserIcon(accurate));
+}
+
+function buildUserIcon(accurate: boolean): L.DivIcon {
   return L.divIcon({
     className: 'himgati-marker',
     iconSize: [22, 22],
@@ -99,11 +141,35 @@ function userIcon(accurate: boolean): L.DivIcon {
   });
 }
 
+/** Dropped-pin marker. Dragging a pin re-renders on every mouse move. */
+function pinIcon(): L.DivIcon {
+  return cachedIcon('pin', () =>
+    L.divIcon({
+      className: 'himgati-marker',
+      iconSize: [26, 34],
+      iconAnchor: [13, 32],
+      html: `<svg width="26" height="34" viewBox="0 0 26 34" fill="none">
+              <path d="M13 33C13 33 25 21.6 25 13A12 12 0 1 0 1 13c0 8.6 12 20 12 20Z"
+                fill="var(--color-brand-600)" stroke="#fff" stroke-width="2"/>
+              <circle cx="13" cy="13" r="4.5" fill="#fff"/>
+            </svg>`,
+    }),
+  );
+}
+
 /* ------------------------------ map helpers ------------------------------- */
 
 function FitBounds({ points, padding = 44 }: { points: LatLng[]; padding?: number }) {
   const map = useMap();
-  const key = points.length ? `${points.length}:${points[0].lat}:${points[points.length - 1].lng}` : '';
+
+  // Keyed on the actual extent rather than "length + first lat + last lng": two
+  // different route shapes can share all three of those and then fail to refit.
+  const key = points.length
+    ? boundsOf(points, 0)
+        .flat()
+        .map((n) => n.toFixed(4))
+        .join(',')
+    : '';
 
   useEffect(() => {
     if (points.length === 0) return;
@@ -118,12 +184,25 @@ function FitBounds({ points, padding = 44 }: { points: LatLng[]; padding?: numbe
   return null;
 }
 
-function Recenter({ center, zoom }: { center?: LatLng; zoom?: number }) {
+/**
+ * `recenterKey` lets a caller re-issue the *same* coordinates and still have the
+ * map move — needed for a "centre on me" control, which must work again after the
+ * user has panned away, even though the target position has not changed.
+ */
+function Recenter({
+  center,
+  zoom,
+  recenterKey,
+}: {
+  center?: LatLng;
+  zoom?: number;
+  recenterKey?: number;
+}) {
   const map = useMap();
   useEffect(() => {
     if (center) map.setView([center.lat, center.lng], zoom ?? map.getZoom(), { animate: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [center?.lat, center?.lng, zoom]);
+  }, [center?.lat, center?.lng, zoom, recenterKey]);
   return null;
 }
 
@@ -160,6 +239,8 @@ export interface TransitMapProps {
   userAccurate?: boolean;
   center?: LatLng;
   zoom?: number;
+  /** Bump to re-apply `center` even when the coordinates are unchanged. */
+  recenterKey?: number;
   fitTo?: LatLng[];
   onPickPoint?: (p: LatLng) => void;
   pin?: LatLng;
@@ -179,6 +260,7 @@ export function TransitMap({
   userAccurate = true,
   center,
   zoom,
+  recenterKey,
   fitTo,
   onPickPoint,
   pin,
@@ -268,25 +350,10 @@ export function TransitMap({
         />
       )}
 
-      {pin && (
-        <Marker
-          position={[pin.lat, pin.lng]}
-          icon={L.divIcon({
-            className: 'himgati-marker',
-            iconSize: [26, 34],
-            iconAnchor: [13, 32],
-            html: `<svg width="26" height="34" viewBox="0 0 26 34" fill="none">
-              <path d="M13 33C13 33 25 21.6 25 13A12 12 0 1 0 1 13c0 8.6 12 20 12 20Z"
-                fill="var(--color-brand-600)" stroke="#fff" stroke-width="2"/>
-              <circle cx="13" cy="13" r="4.5" fill="#fff"/>
-            </svg>`,
-          })}
-          zIndexOffset={1100}
-        />
-      )}
+      {pin && <Marker position={[pin.lat, pin.lng]} icon={pinIcon()} zIndexOffset={1100} />}
 
       {fitTo && fitTo.length > 0 && <FitBounds points={fitTo} />}
-      {center && <Recenter center={center} zoom={zoom} />}
+      {center && <Recenter center={center} zoom={zoom} recenterKey={recenterKey} />}
       {onPickPoint && <PinPicker onPick={onPickPoint} />}
     </MapContainer>
   );

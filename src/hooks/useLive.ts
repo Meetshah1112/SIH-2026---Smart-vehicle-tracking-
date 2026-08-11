@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { LiveBus, StopPrediction } from '@/types';
-import { LIVE_BOARD_HORIZON_MIN, simulator } from '@/services/simulation/simulator';
+import { departuresAtStop, simulator } from '@/services/simulation/simulator';
 
 /**
  * Live fleet subscription.
@@ -17,26 +17,22 @@ export function useLiveBus(busId: string | undefined): LiveBus | undefined {
   return busId ? fleet.find((b) => b.bus.id === busId) : undefined;
 }
 
-/** Live arrivals for a stop, recomputed on every fleet tick. */
+/**
+ * Live arrivals for a stop, recomputed on every fleet tick.
+ *
+ * Delegates to `departuresAtStop` rather than reimplementing the filter, so the
+ * hook, the SMS reply and the REST-shaped `getDepartures` can never disagree
+ * about which vehicles belong on a board.
+ */
 export function useDepartures(
   stopId: string | undefined,
   limit = 8,
 ): Array<{ live: LiveBus; prediction: StopPrediction }> {
   const fleet = useLiveFleet();
-  if (!stopId) return [];
-
-  return fleet
-    .flatMap((live) => {
-      if (live.live.status === 'cancelled') return [];
-      const prediction = live.live.predictions.find((p) => p.stopId === stopId);
-      // Layover vehicles at a terminus count; anything beyond the live-board
-      // horizon belongs on the timetable instead.
-      return prediction && prediction.etaMin <= LIVE_BOARD_HORIZON_MIN
-        ? [{ live, prediction }]
-        : [];
-    })
-    .sort((a, b) => a.prediction.etaMin - b.prediction.etaMin)
-    .slice(0, limit);
+  return useMemo(
+    () => (stopId ? departuresAtStop(stopId, fleet).slice(0, limit) : []),
+    [fleet, stopId, limit],
+  );
 }
 
 /* ------------------------------ async helper ------------------------------ */

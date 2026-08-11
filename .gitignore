@@ -8,3 +8,6 @@ dev-dist
 .env.local
 .vite
 *.log
+
+# Local agent/tool config
+.claude

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   Accessibility,
@@ -42,6 +42,7 @@ import { co2SavedKg, EMISSION_FACTORS, FUEL_LABEL, NORM_NOTE, busEmissionFactor 
 import { delayLabel } from '@/lib/eta';
 import { OCCUPANCY_LABEL, OCCUPANCY_LEVEL, duration, kg, rupees } from '@/lib/format';
 import { formatDistance } from '@/lib/geo';
+import { shareLink } from '@/lib/share';
 
 const AMENITY_META: Record<string, { label: string; icon: typeof Wifi }> = {
   ac: { label: 'Air conditioned', icon: Gauge },
@@ -64,6 +65,14 @@ export function BusInfoScreen() {
   const live = useLiveBus(busId);
   const { isTracked, toggleTracked, alerts, location } = useApp();
   const [showFullRoute, setShowFullRoute] = useState(false);
+  const [shareNote, setShareNote] = useState<string | null>(null);
+
+  // Clear the copy confirmation on its own rather than leaving it on screen.
+  useEffect(() => {
+    if (!shareNote) return;
+    const t = setTimeout(() => setShareNote(null), 2400);
+    return () => clearTimeout(t);
+  }, [shareNote]);
 
   const reviews = useMemo(() => (busId ? reviewsForBus(busId) : []), [busId]);
   const reviewSummary = useMemo(() => summariseReviews(reviews), [reviews]);
@@ -94,6 +103,14 @@ export function BusInfoScreen() {
   const nextStop = next ? STOP_BY_ID.get(next.stopId) : undefined;
   const routeAlert = alerts.find((a) => a.affectedRouteIds.includes(route.id));
 
+  // The Share button previously did nothing at all.
+  const share = () =>
+    shareLink({
+      title: `Bus ${route.shortName} · ${bus.registration}`,
+      text: `Tracking ${bus.registration} on ${route.longName}`,
+      path: `/bus/${bus.id}`,
+    }).then(setShareNote);
+
   const totalKm = routeDistanceKm(route);
   const remainingKm = Math.max(0, totalKm - pos.progressKm);
   const tripCo2Saved = co2SavedKg(bus.fuel, totalKm);
@@ -107,7 +124,7 @@ export function BusInfoScreen() {
         subtitle={route.longName}
         actions={
           <>
-            <IconButton label="Share" className="h-9 w-9">
+            <IconButton label="Share" className="h-9 w-9" onClick={share}>
               <Share2 size={16} strokeWidth={2.2} />
             </IconButton>
             <IconButton
@@ -123,6 +140,12 @@ export function BusInfoScreen() {
 
       <ScreenBody className="pt-4">
         <Stack>
+          {shareNote && (
+            <Notice tone="neutral" icon={<Share2 size={14} strokeWidth={2.3} />}>
+              {shareNote} — anyone with the link sees this vehicle's live position.
+            </Notice>
+          )}
+
           {routeAlert && <AlertStrip alert={routeAlert} />}
 
           {/* ---------------------------- live block --------------------------- */}

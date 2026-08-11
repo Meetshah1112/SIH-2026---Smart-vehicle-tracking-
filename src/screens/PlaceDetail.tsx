@@ -30,6 +30,7 @@ import { CATEGORY_LABEL } from '@/data/places';
 import { STOP_BY_ID } from '@/data/stops';
 import { duration } from '@/lib/format';
 import { formatDistance, haversineKm } from '@/lib/geo';
+import { shareLink } from '@/lib/share';
 import type { FuelType } from '@/types';
 import { cn } from '@/lib/cn';
 
@@ -101,6 +102,13 @@ export function PlaceDetailScreen() {
               <>
                 <IconButton
                   label="Share"
+                  onClick={() =>
+                    shareLink({
+                      title: p.name,
+                      text: `${p.name}, ${p.town} — reachable by bus`,
+                      path: `/place/${p.id}`,
+                    })
+                  }
                   className="h-9 w-9 border-0 bg-surface/90 shadow-sm backdrop-blur"
                 >
                   <Share2 size={16} strokeWidth={2.2} />

@@ -51,15 +51,29 @@ export function SearchScreen() {
       return;
     }
 
+    let current = true;
     setBusy(true);
+
     const handle = setTimeout(() => {
       search(query)
-        .then(setResults)
-        .catch(() => setResults(null))
-        .finally(() => setBusy(false));
+        .then((r) => {
+          if (current) setResults(r);
+        })
+        .catch(() => {
+          if (current) setResults(null);
+        })
+        .finally(() => {
+          if (current) setBusy(false);
+        });
     }, 220);
 
-    return () => clearTimeout(handle);
+    // Debouncing alone is not enough: once a request is in flight the transport's
+    // latency varies enough (140–380 ms) that a query fired earlier can resolve
+    // after a later one and overwrite it with results for a stale query.
+    return () => {
+      current = false;
+      clearTimeout(handle);
+    };
   }, [query]);
 
   const hasResults = Boolean(results) && !results!.isEmpty;

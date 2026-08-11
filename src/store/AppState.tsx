@@ -86,9 +86,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // The service layer needs to know, so cacheable reads can be served stale.
-  useEffect(() => {
-    client.offline = offlineMode || !online;
-  }, [offlineMode, online]);
+  //
+  // Assigned during render rather than in an effect. Screens fire their first
+  // requests from their own effects, and child effects run *before* the
+  // provider's — so an app opened with no connection used to issue its entire
+  // first round of requests with the transport still believing it was online.
+  client.offline = offlineMode || !online;
 
   useEffect(() => {
     getAlerts().then(setAlerts).catch(() => setAlerts([]));

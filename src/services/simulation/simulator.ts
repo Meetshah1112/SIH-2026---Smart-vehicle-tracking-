@@ -93,9 +93,16 @@ interface TripState {
   started: boolean;
 }
 
-function occupancyFor(seed: number, simMinutes: number): Occupancy {
-  // Slowly varying, deterministic, and peaks around the morning/evening rush.
-  const hour = (simMinutes / 60) % 24;
+/**
+ * Occupancy peaks around the morning and evening rush.
+ *
+ * `hour` is the *real* hour of the day, not the simulated one. The simulated
+ * clock starts at zero when the page loads, so keying occupancy off it meant
+ * every session opened at a modelled midnight — empty buses while the greeting
+ * said "Good afternoon" and the timetable showed afternoon departures. Every
+ * other time-of-day fact in the app comes from the wall clock; this now does too.
+ */
+function occupancyFor(seed: number, hour: number): Occupancy {
   const rush = Math.max(0, Math.cos(((hour - 9) / 12) * Math.PI)) + Math.max(0, Math.cos(((hour - 18) / 12) * Math.PI));
   const v = seeded(seed) * 0.5 + rush * 0.5;
   if (v > 0.78) return 'full';
@@ -202,6 +209,7 @@ class FleetSimulator {
   private recompute() {
     const simMs = this.simMs();
     const simMin = simMs / 60_000;
+    const realHour = new Date().getHours() + new Date().getMinutes() / 60;
 
     this.snapshot = BUSES.map((bus) => {
       const route = ROUTE_BY_ID.get(bus.routeId)!;
@@ -223,7 +231,13 @@ class FleetSimulator {
       const cancelled = pin.status === 'cancelled';
       const blocked = !cancelled && running && this.inDeadZone(route.id, trueKm);
 
-      if (!running) {
+      if (cancelled) {
+        // A cancelled service does not move. Advancing its position while the
+        // card says "Cancelled" and the speed reads 0 km/h is three statements
+        // about one vehicle that cannot all be true.
+        trip.reportedAtSimMs = simMs;
+        trip.started = false;
+      } else if (!running) {
         // Layover at the terminus: the vehicle is stationary but still reporting.
         trip.reportedKm = 0;
         trip.displayKm = 0;
@@ -285,11 +299,15 @@ class FleetSimulator {
         position: onLine.position,
         bearing: onLine.bearing,
         speedKmph: Math.round(speedKmph),
-        recordedAt: new Date(Date.now() - (ageSec * 1000) / TIME_SCALE).toISOString(),
+        // `ageSec` is measured on the simulated clock, and every consumer —
+        // confidence, Signal Lost, the "updated N ago" line — reads it in those
+        // terms. `recordedAt` has to agree with it: dividing by TIME_SCALE here
+        // made the two fields describe ages 12× apart for the same fix.
+        recordedAt: new Date(Date.now() - ageSec * 1000).toISOString(),
         ageSec: Math.round(ageSec),
         status,
         delayMin: trip.delayMin,
-        occupancy: cancelled ? 'unknown' : occupancyFor(trip.occupancySeed, simMin),
+        occupancy: cancelled ? 'unknown' : occupancyFor(trip.occupancySeed, realHour),
         nextStopIndex,
         progressKm: Math.round(trip.reportedKm * 10) / 10,
         predictions,
@@ -355,39 +373,49 @@ class FleetSimulator {
   }
 
   /**
-   * Timetable-derived arrivals: the next *scheduled* service at each upcoming
-   * stop, ignoring live position entirely. Always low confidence, because a
-   * timetable is a plan rather than an observation.
+   * Timetable-derived arrivals: the next *scheduled* service, ignoring live
+   * position entirely. Always low confidence, because a timetable is a plan
+   * rather than an observation.
+   *
+   * One trip is chosen — the next one still due at the vehicle's next stop — and
+   * that single origin departure is propagated down the line. Picking a
+   * departure independently per stop (as this used to) let a different service
+   * win at each stop, which produced arrival times that went *backwards* along
+   * the route: 76 min to Mandi, then 21 min to Bhuntar beyond it.
    */
   private predictFromTimetable(route: Route, nextStopIndex: number): StopPrediction[] {
     const totalKm = routeDistanceKm(route);
     const nowMs = Date.now();
+
+    /** Minutes from the origin departure to stop `i`, monotonic in `i`. */
+    const offsetAt = (i: number) => (route.distancesKm[i] / totalKm) * route.typicalDurationMin;
+
+    const targetOffsetMs = offsetAt(nextStopIndex) * 60_000;
+    let originDeparture: Date | null = null;
+
+    for (const dep of route.departures) {
+      const [h, m] = dep.split(':').map(Number);
+      const t = new Date();
+      t.setHours(h, m, 0, 0);
+      if (t.getTime() + targetOffsetMs > nowMs) {
+        originDeparture = t;
+        break;
+      }
+    }
+
+    // Nothing left today — roll to the first service tomorrow.
+    if (!originDeparture) {
+      const [h, m] = route.departures[0].split(':').map(Number);
+      originDeparture = new Date();
+      originDeparture.setDate(originDeparture.getDate() + 1);
+      originDeparture.setHours(h, m, 0, 0);
+    }
+
     const out: StopPrediction[] = [];
-
     for (let i = nextStopIndex; i < route.stopIds.length; i++) {
-      const offsetMin = (route.distancesKm[i] / totalKm) * route.typicalDurationMin;
-
-      // First scheduled call at this stop that has not already gone.
-      let arrival: Date | null = null;
-      for (const dep of route.departures) {
-        const [h, m] = dep.split(':').map(Number);
-        const t = new Date();
-        t.setHours(h, m, 0, 0);
-        const candidate = new Date(t.getTime() + offsetMin * 60_000);
-        if (candidate.getTime() > nowMs) {
-          arrival = candidate;
-          break;
-        }
-      }
-      if (!arrival) {
-        const [h, m] = route.departures[0].split(':').map(Number);
-        const t = new Date();
-        t.setDate(t.getDate() + 1);
-        t.setHours(h, m, 0, 0);
-        arrival = new Date(t.getTime() + offsetMin * 60_000);
-      }
-
+      const arrival = new Date(originDeparture.getTime() + offsetAt(i) * 60_000);
       const etaMin = Math.max(0, Math.round((arrival.getTime() - nowMs) / 60_000));
+
       out.push({
         stopId: route.stopIds[i],
         etaMin,
@@ -430,10 +458,13 @@ export function liveBusByRegistration(query: string): LiveBus | undefined {
  */
 const LIVE_BOARD_HORIZON_MIN = 120;
 
-export function departuresAtStop(stopId: string): Array<{ live: LiveBus; prediction: StopPrediction }> {
+export function departuresAtStop(
+  stopId: string,
+  fleet: LiveBus[] = simulator.getSnapshot(),
+): Array<{ live: LiveBus; prediction: StopPrediction }> {
   const out: Array<{ live: LiveBus; prediction: StopPrediction }> = [];
 
-  for (const lb of simulator.getSnapshot()) {
+  for (const lb of fleet) {
     if (lb.live.status === 'cancelled') continue;
     const prediction = lb.live.predictions.find((p) => p.stopId === stopId);
     if (prediction && prediction.etaMin <= LIVE_BOARD_HORIZON_MIN) {

@@ -51,7 +51,14 @@ export function BusCard({
 
   // A vehicle still in its origin bay is departing, not arriving — saying
   // "arriving" there would be wrong in the one place it matters most.
-  const boardingLabel = stopName ?? shortStopName(live.route.stopIds[0]);
+  //
+  // The stop this card is about is the one the prediction is for. Callers used to
+  // pass the user's *location label* here, which is only sometimes a stop name:
+  // resolve by landmark and the card read "Arriving at Near Kufri Fun World",
+  // by map pin "Arriving at Pinned location". The prediction is authoritative;
+  // `stopName` is now only a fallback for cards rendered without one.
+  const boardingLabel =
+    shortStopName(prediction?.stopId) || stopName || shortStopName(live.route.stopIds[0]);
   const whereLabel = waiting
     ? `Waiting at ${shortStopName(live.route.stopIds[0])}`
     : `Now near ${live.live.lastSeenStopName?.replace(/,.*$/, '') ?? passedStopName}`;

@@ -146,16 +146,33 @@ export interface Departure {
   platform?: string;
 }
 
+/**
+ * Which bay a vehicle uses at a stop.
+ *
+ * Keyed off the vehicle, not its position in the departure list. The list is
+ * re-sorted by ETA on every tick, so an index-based bay changed under the reader
+ * every second — the same bus would read "Bay 3" then "Bay 1" a second later.
+ * A real deployment takes this from the stand's bay allocation; until then it is
+ * at least stable per vehicle.
+ */
+export function platformFor(stop: Stop | undefined, busId: string): string | undefined {
+  const bays = stop?.platforms;
+  if (!bays || bays.length === 0) return undefined;
+  let hash = 0;
+  for (let i = 0; i < busId.length; i++) hash = (hash * 31 + busId.charCodeAt(i)) % 100_000;
+  return bays[hash % bays.length];
+}
+
 /** Live arrivals board for a stop. */
 export function getDepartures(stopId: string, limit = 8): Promise<Departure[]> {
   return request(`/v1/stops/${stopId}/departures`, () => {
     const stop = STOP_BY_ID.get(stopId);
     return departuresAtStop(stopId)
       .slice(0, limit)
-      .map(({ live, prediction }, i) => ({
+      .map(({ live, prediction }) => ({
         live,
         prediction,
-        platform: stop?.platforms?.[i % (stop.platforms?.length || 1)],
+        platform: platformFor(stop, live.bus.id),
       }));
   });
 }
@@ -199,11 +216,16 @@ export function getTimetable(stopId: string): Promise<TimetableEntry[]> {
   }, { cacheable: true });
 }
 
-/** Next `count` timetabled departures from now. */
+/**
+ * Next `count` timetabled departures from now, wrapping into tomorrow's board
+ * once today's are exhausted. The wrap appends only the entries that have already
+ * gone today — appending the whole list repeated the ones already shown.
+ */
 export function upcomingTimetable(entries: TimetableEntry[], count = 6): TimetableEntry[] {
   const nowStr = new Date().toTimeString().slice(0, 5);
   const later = entries.filter((e) => e.time >= nowStr);
-  return (later.length >= count ? later : [...later, ...entries]).slice(0, count);
+  if (later.length >= count) return later.slice(0, count);
+  return [...later, ...entries.filter((e) => e.time < nowStr)].slice(0, count);
 }
 
 /* ---------------------------------- SMS ----------------------------------- */

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { CheckCircle2, MessageSquare, Star, ThumbsUp } from 'lucide-react';
 import type { RatingBreakdown } from '@/types';
@@ -243,13 +243,16 @@ function ReviewComposer({
 
   const complete = Object.values(scores).every((v) => v > 0);
 
+  // Reset when the sheet reopens rather than on a bare timeout after close: the
+  // old 300 ms timer could outlive the component and fired regardless.
+  useEffect(() => {
+    if (open) setSubmitted(false);
+  }, [open]);
+
   return (
     <Sheet
       open={open}
-      onClose={() => {
-        onClose();
-        setTimeout(() => setSubmitted(false), 300);
-      }}
+      onClose={onClose}
       title={submitted ? 'Thanks — review recorded' : 'Rate this journey'}
       subtitle={submitted ? undefined : journey}
       footer={
