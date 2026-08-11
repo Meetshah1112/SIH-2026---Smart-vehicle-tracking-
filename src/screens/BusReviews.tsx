@@ -10,7 +10,8 @@ import { ScoreBar, Stars } from '@/components/ui/Meters';
 import { StateBlock, Notice } from '@/components/ui/States';
 import { Segmented } from '@/components/ui/Field';
 import { useLiveBus } from '@/hooks/useLive';
-import { RATING_DIMENSIONS, reviewsForBus, summariseReviews } from '@/data/reviews';
+import { useApp } from '@/store/AppState';
+import { RATING_DIMENSIONS, reviewsForBusWith, summariseReviews } from '@/data/reviews';
 import { TRIPS } from '@/data/trips';
 import { dayLabel } from '@/lib/format';
 import { cn } from '@/lib/cn';
@@ -28,10 +29,17 @@ type Sort = 'recent' | 'highest' | 'lowest';
 export function BusReviewsScreen() {
   const { busId } = useParams<{ busId: string }>();
   const live = useLiveBus(busId);
+  const { userReviews, reviewedTripIds } = useApp();
   const [sort, setSort] = useState<Sort>('recent');
   const [composing, setComposing] = useState(false);
 
-  const reviews = useMemo(() => (busId ? reviewsForBus(busId) : []), [busId]);
+  // Seeded reviews plus anything the user has submitted this session, so a
+  // review just written is visible here immediately rather than only existing
+  // in a "Thanks" toast.
+  const reviews = useMemo(
+    () => (busId ? reviewsForBusWith(busId, userReviews) : []),
+    [busId, userReviews],
+  );
   const summary = useMemo(() => summariseReviews(reviews), [reviews]);
 
   const sorted = useMemo(() => {
@@ -41,10 +49,24 @@ export function BusReviewsScreen() {
     return list;
   }, [reviews, sort]);
 
-  /** A review can only be written against a journey the user actually took. */
+  /**
+   * A review can only be written against a journey the user actually took, and
+   * only once. `t.reviewed` is the trip's own seeded flag; `reviewedTripIds`
+   * covers ones reviewed live this session — a trip fixture never mutates itself,
+   * so relying on `t.reviewed` alone let the same journey be rated over and over.
+   */
   const eligibleTrip = useMemo(
-    () => TRIPS.find((t) => t.busId === busId && !t.reviewed),
-    [busId],
+    () => TRIPS.find((t) => t.busId === busId && !t.reviewed && !reviewedTripIds.includes(t.id)),
+    [busId, reviewedTripIds],
+  );
+
+  /** For the "you already rated this" message when nothing is left to rate. */
+  const alreadyReviewedTrip = useMemo(
+    () =>
+      !eligibleTrip
+        ? TRIPS.find((t) => t.busId === busId && (t.reviewed || reviewedTripIds.includes(t.id)))
+        : undefined,
+    [busId, eligibleTrip, reviewedTripIds],
   );
 
   return (
@@ -198,6 +220,11 @@ export function BusReviewsScreen() {
                   Write a review
                 </Button>
               </Card>
+            ) : alreadyReviewedTrip ? (
+              <Notice tone="neutral" icon={<CheckCircle2 size={14} strokeWidth={2.3} />}>
+                You already rated your {alreadyReviewedTrip.from.replace(/,.*$/, '')} →{' '}
+                {alreadyReviewedTrip.to.replace(/,.*$/, '')} journey on this bus.
+              </Notice>
             ) : (
               <Notice tone="neutral">
                 Only passengers with a completed journey on this vehicle can leave a review. That is
@@ -208,30 +235,35 @@ export function BusReviewsScreen() {
         )}
       </ScreenBody>
 
-      <ReviewComposer
-        open={composing}
-        onClose={() => setComposing(false)}
-        journey={
-          eligibleTrip
-            ? `${eligibleTrip.from.replace(/,.*$/, '')} → ${eligibleTrip.to.replace(/,.*$/, '')} · ${dayLabel(eligibleTrip.date)}`
-            : ''
-        }
-      />
+      {eligibleTrip && busId && (
+        <ReviewComposer
+          open={composing}
+          onClose={() => setComposing(false)}
+          busId={busId}
+          tripId={eligibleTrip.id}
+          journey={`${eligibleTrip.from.replace(/,.*$/, '')} → ${eligibleTrip.to.replace(/,.*$/, '')} · ${dayLabel(eligibleTrip.date)}`}
+        />
+      )}
     </Screen>
   );
 }
 
 /* ----------------------------- review composer ---------------------------- */
 
-function ReviewComposer({
+export function ReviewComposer({
   open,
   onClose,
+  busId,
+  tripId,
   journey,
 }: {
   open: boolean;
   onClose: () => void;
+  busId: string;
+  tripId: string;
   journey: string;
 }) {
+  const { submitReview } = useApp();
   const [scores, setScores] = useState<RatingBreakdown>({
     cleanliness: 0,
     comfort: 0,
@@ -246,8 +278,20 @@ function ReviewComposer({
   // Reset when the sheet reopens rather than on a bare timeout after close: the
   // old 300 ms timer could outlive the component and fired regardless.
   useEffect(() => {
-    if (open) setSubmitted(false);
+    if (open) {
+      setSubmitted(false);
+      setScores({ cleanliness: 0, comfort: 0, punctuality: 0, safety: 0 });
+      setComment('');
+    }
   }, [open]);
+
+  // Submitting used to only flip a local flag, so the confirmation was the entire
+  // feature — the review never reached the vehicle it was written about.
+  const submit = () => {
+    if (!complete) return;
+    submitReview({ busId, tripId, journey, breakdown: scores, comment });
+    setSubmitted(true);
+  };
 
   return (
     <Sheet
@@ -257,7 +301,7 @@ function ReviewComposer({
       subtitle={submitted ? undefined : journey}
       footer={
         submitted ? undefined : (
-          <Button block size="lg" disabled={!complete} onClick={() => setSubmitted(true)}>
+          <Button block size="lg" disabled={!complete} onClick={submit}>
             Submit review
           </Button>
         )
