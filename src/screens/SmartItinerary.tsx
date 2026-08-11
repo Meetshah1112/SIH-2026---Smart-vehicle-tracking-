@@ -307,7 +307,7 @@ function ItineraryResult({ itinerary, onRebuild }: { itinerary: Itinerary; onReb
                     <Card padded={false} className="overflow-hidden">
                       <div className="flex gap-3">
                         <div className="h-[86px] w-[84px] shrink-0">
-                          <PlaceArt seed={s.place.photoSeed} category={s.place.category} />
+                          <PlaceArt seed={s.place.photoSeed} category={s.place.category} placeId={s.place.id} alt={s.place.name} />
                         </div>
                         <div className="min-w-0 flex-1 py-2.5 pr-3">
                           <div className="flex items-baseline gap-2">

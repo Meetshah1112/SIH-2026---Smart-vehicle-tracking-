@@ -101,7 +101,7 @@ export function SavedScreen() {
                       <div key={p.id} className="card overflow-hidden p-0">
                         <Link to={`/place/${p.id}`} className="flex gap-3">
                           <div className="h-[92px] w-[86px] shrink-0">
-                            <PlaceArt seed={p.photoSeed} category={p.category} />
+                            <PlaceArt seed={p.photoSeed} category={p.category} placeId={p.id} alt={p.name} />
                           </div>
 
                           <div className="min-w-0 flex-1 py-2.5 pr-2.5">
