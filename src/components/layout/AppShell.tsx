@@ -163,6 +163,10 @@ function DesktopAside() {
             speed, standing in for the AIS-140 → MQTT → GTFS-RT pipeline.
           </li>
           <li>
+            Vehicles are moved by a congestion model, not a fixed timetable pace, so
+            an ETA genuinely rises in traffic and comes back in as the road clears.
+          </li>
+          <li>
             Bus <span className="font-semibold text-white/80">HP-01-3312</span> passes through a
             modelled dead zone between Sundernagar and Mandi — watch it drop to{' '}
             <span className="font-semibold text-white/80">Signal lost</span> and recover.

@@ -4,7 +4,7 @@ import type { LiveBus, StopPrediction } from '@/types';
 import { OCCUPANCY_LABEL, OCCUPANCY_LEVEL } from '@/lib/format';
 import { OccupancyMeter } from '@/components/ui/Meters';
 import { GreenStrip } from './Green';
-import { EtaDisplay, FreshnessLine, StatusBadge } from './Eta';
+import { EtaDisplay, FreshnessLine, StatusBadge, TrafficLine } from './Eta';
 import { useApp } from '@/store/AppState';
 import { stopName as lookupStopName } from '@/data/stops';
 import { cn } from '@/lib/cn';
@@ -127,6 +127,7 @@ export function BusCard({
           <span className="truncate">{whereLabel}</span>
         </div>
 
+        <TrafficLine live={live.live} className="mt-1.5" />
         <FreshnessLine live={live.live} className="mt-1.5" />
       </Link>
 

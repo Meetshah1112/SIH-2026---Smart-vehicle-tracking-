@@ -129,6 +129,15 @@ export interface VehiclePosition {
   predictions: StopPrediction[];
   /** Set while the bus is inside a known dead zone (SRS §8.5). */
   lastSeenStopName?: string;
+  /**
+   * Current road speed as a fraction of the timetable's assumed speed. 1.0 is
+   * on-pace, below 1 is congested, above 1 is a clear road. Undefined when the
+   * vehicle is not moving or not reporting — congestion is an observation, and we
+   * do not have one for a stationary or silent bus.
+   */
+  congestion?: number;
+  /** Named cause when a known bottleneck is what is slowing the vehicle. */
+  delayCause?: string;
 }
 
 /** What most cards need: the static bus, its route and its live state in one object. */

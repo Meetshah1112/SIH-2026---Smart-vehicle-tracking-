@@ -1,4 +1,4 @@
-import { AlertTriangle, Info, SignalHigh, SignalLow, SignalMedium } from 'lucide-react';
+import { AlertTriangle, Gauge, Info, SignalHigh, SignalLow, SignalMedium, TrafficCone } from 'lucide-react';
 import type { Confidence, StopPrediction, TripStatus, VehiclePosition } from '@/types';
 import {
   CONFIDENCE_LABEL,
@@ -9,6 +9,7 @@ import {
   relativeAge,
   statusTone,
 } from '@/lib/eta';
+import { conditionLabel } from '@/services/simulation/traffic';
 import { StatusPill } from '@/components/ui/Badge';
 import { cn } from '@/lib/cn';
 
@@ -153,6 +154,64 @@ export function FreshnessLine({
         )}
       />
       <span>Position updated {relativeAge(live.ageSec)}</span>
+    </div>
+  );
+}
+
+/**
+ * Road conditions behind a moving ETA.
+ *
+ * An arrival time that changes needs a reason, or it just looks unreliable. This
+ * names the bottleneck when there is one and otherwise says how the road is
+ * running, so a passenger watching "9 min" become "13 min" can see why.
+ */
+export function TrafficLine({
+  live,
+  className,
+}: {
+  live: VehiclePosition;
+  className?: string;
+}) {
+  if (live.congestion === undefined) return null;
+
+  const level = conditionLabel(live.congestion);
+  if (level === 'normal') return null;
+
+  const clear = level === 'clear';
+  const pct = Math.abs(Math.round((1 - live.congestion) * 100));
+
+  return (
+    <div
+      className={cn(
+        'flex items-start gap-1.5 text-[11.5px] leading-snug',
+        clear ? 'text-ok' : level === 'heavy' ? 'text-warn' : 'text-ink-3',
+        className,
+      )}
+    >
+      {clear ? (
+        <Gauge size={12} strokeWidth={2.4} className="mt-px shrink-0" />
+      ) : (
+        <TrafficCone size={12} strokeWidth={2.4} className="mt-px shrink-0" />
+      )}
+      <span>
+        {clear ? (
+          <>Road is clear — running about {pct}% quicker than timetable.</>
+        ) : (
+          <>
+            {live.delayCause ? (
+              <>
+                <span className="font-semibold">{live.delayCause}</span> — moving about {pct}% slower
+                than timetable.
+              </>
+            ) : (
+              <>
+                {level === 'heavy' ? 'Heavy traffic' : 'Slow traffic'} ahead — about {pct}% slower
+                than timetable.
+              </>
+            )}
+          </>
+        )}
+      </span>
     </div>
   );
 }
