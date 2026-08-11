@@ -156,6 +156,18 @@
   font-family: var(--font-sans);
   outline: none;
 }
+
+/*
+ * Basemap tone.
+ *
+ * Voyager is used for its road hierarchy — Positron's roads vanish into the
+ * background once you zoom past the network view. Pulling the saturation and
+ * contrast back keeps that geometry legible while leaving the route lines,
+ * vehicle markers and stop pins as the loudest things on the map.
+ */
+.himgati-tiles {
+  filter: saturate(0.62) contrast(0.94) brightness(1.03);
+}
 .leaflet-control-attribution {
   font-size: 9px !important;
   background: rgba(255, 255, 255, 0.72) !important;
