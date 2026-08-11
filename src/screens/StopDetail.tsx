@@ -297,7 +297,7 @@ export function StopDetailScreen() {
                 {places.slice(0, 6).map((p) => (
                   <Link key={p.id} to={`/place/${p.id}`} className="w-[152px] shrink-0">
                     <div className="card overflow-hidden p-0">
-                      <PlaceArt seed={p.photoSeed} category={p.category} className="h-[80px]" />
+                      <PlaceArt seed={p.photoSeed} category={p.category} placeId={p.id} alt={p.name} className="h-[80px]" />
                       <div className="p-2.5">
                         <div className="truncate text-[12.5px] font-bold text-ink">{p.name}</div>
                         <div className="mt-0.5 truncate text-[11px] text-ink-3">

@@ -228,7 +228,7 @@ export function HomeScreen() {
               {(places.data ?? []).slice(0, 6).map((p) => (
                 <Link key={p.id} to={`/place/${p.id}`} className="w-[176px] shrink-0">
                   <div className="card overflow-hidden p-0 transition-shadow hover:shadow-sm">
-                    <PlaceCover seed={p.photoSeed} category={p.category} className="h-[96px]" />
+                    <PlaceCover seed={p.photoSeed} category={p.category} placeId={p.id} alt={p.name} className="h-[96px]" />
                     <div className="p-2.5">
                       <div className="truncate text-[13px] font-bold text-ink">{p.name}</div>
                       <div className="mt-1 flex items-center gap-1.5 text-[11px] text-ink-3">

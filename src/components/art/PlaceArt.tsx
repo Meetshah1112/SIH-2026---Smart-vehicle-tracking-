@@ -1,16 +1,22 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { PlaceCategory } from '@/types';
 import { seeded } from '@/lib/format';
+import { photoFor, photoUrl } from '@/data/placePhotos';
 import { cn } from '@/lib/cn';
 
 /**
- * Procedural cover artwork for destinations.
+ * Cover artwork for destinations.
  *
- * Photography would mean either shipping tens of megabytes or fetching from a
- * CDN — neither acceptable for an app whose whole premise is working on a weak
- * hill connection. Instead each place renders a deterministic ridge-line scene
- * from its `photoSeed`, so covers are distinct, weightless, and identical every
- * time the same place is opened.
+ * Real photographs of the specific landmarks, where we have one — see
+ * `data/placePhotos.ts` for the files, their licences and the required credit.
+ * They are bundled rather than hotlinked, because an app built for a weak hill
+ * connection should not need a CDN round trip to show a cover.
+ *
+ * The generated ridge-line scene below is no longer the whole story, but it still
+ * earns its place twice over: as the placeholder while a photograph decodes, and
+ * as the fallback for the places we have no photograph of. It is deterministic
+ * from `photoSeed`, so a given place always gets the same scene, and each
+ * category draws its own subject rather than the same hillside in a new tint.
  */
 
 interface Palette {
@@ -78,15 +84,78 @@ function ridgePath(seed: number, baseY: number, amplitude: number, width = 400, 
   return `${points.join(' ')} L${width},${height} L0,${height} Z`;
 }
 
+/**
+ * A place's cover: its photograph where we have one, the illustration otherwise.
+ *
+ * The illustration always renders underneath. That makes it the placeholder while
+ * the photo decodes *and* the fallback if the file is missing or fails to load,
+ * with no layout shift either way — the picture fades in over a scene that was
+ * already the right shape and colour.
+ */
 export function PlaceArt({
   seed,
   category,
+  placeId,
+  alt,
   className,
+  showSun = true,
+  priority = false,
+}: {
+  seed: number;
+  category: PlaceCategory;
+  /** Enables the real photograph when one exists for this place. */
+  placeId?: string;
+  alt?: string;
+  className?: string;
+  showSun?: boolean;
+  /**
+   * Set on an above-the-fold hero. Lazy-loading the one image the user is
+   * already looking at just delays it; everything in a list stays lazy.
+   */
+  priority?: boolean;
+}) {
+  const photo = placeId ? photoFor(placeId) : undefined;
+  const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  return (
+    <div className={cn('relative h-full w-full overflow-hidden', className)}>
+      <PlaceScene seed={seed} category={category} showSun={showSun} />
+
+      {photo && !failed && (
+        <img
+          // A cached image can finish decoding before React attaches `onLoad`,
+          // in which case that event never fires and the photo would sit at
+          // opacity 0 forever — invisible on every revisit. The ref catches the
+          // already-complete case that the event misses.
+          ref={(el) => {
+            if (el?.complete && el.naturalWidth > 0) setLoaded(true);
+          }}
+          src={photoUrl(photo)}
+          alt={alt ?? ''}
+          loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority ? 'high' : 'auto'}
+          decoding="async"
+          onLoad={() => setLoaded(true)}
+          onError={() => setFailed(true)}
+          className={cn(
+            'absolute inset-0 h-full w-full object-cover transition-opacity duration-300',
+            loaded ? 'opacity-100' : 'opacity-0',
+          )}
+        />
+      )}
+    </div>
+  );
+}
+
+/** The generated scene. Placeholder and fallback for `PlaceArt`. */
+function PlaceScene({
+  seed,
+  category,
   showSun = true,
 }: {
   seed: number;
   category: PlaceCategory;
-  className?: string;
   showSun?: boolean;
 }) {
   const palette = PALETTES[category] ?? PALETTES.nature;
@@ -109,9 +178,8 @@ export function PlaceArt({
     <svg
       viewBox="0 0 400 220"
       preserveAspectRatio="xMidYMid slice"
-      className={cn('block h-full w-full', className)}
-      role="img"
-      aria-label="Illustrated ridge line"
+      className="block h-full w-full"
+      aria-hidden
     >
       <defs>
         <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
@@ -152,8 +220,8 @@ export function PlaceArt({
  * place they are labelling — a temple, a tea stall and a ropeway all looked like
  * the same hillside in three tints.
  *
- * These are illustrations, not photographs. Real photography of the specific
- * landmarks would need licensed assets; see the note in the project summary.
+ * This is the fallback path. Places with a real photograph in `placePhotos.ts`
+ * only show this while that photograph decodes.
  */
 function CategoryMotif({
   category,
@@ -287,17 +355,21 @@ function CategoryMotif({
 export function PlaceCover({
   seed,
   category,
+  placeId,
+  alt,
   className,
   children,
 }: {
   seed: number;
   category: PlaceCategory;
+  placeId?: string;
+  alt?: string;
   className?: string;
   children?: React.ReactNode;
 }) {
   return (
     <div className={cn('relative overflow-hidden bg-surface-3', className)}>
-      <PlaceArt seed={seed} category={category} />
+      <PlaceArt seed={seed} category={category} placeId={placeId} alt={alt} />
       {children && (
         <>
           <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-ink/70 to-transparent" />
@@ -305,5 +377,29 @@ export function PlaceCover({
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * Photographer credit. Required by the CC BY / BY-SA licences the photographs
+ * are used under — this is a condition of use, not decoration.
+ */
+export function PhotoCredit({ placeId, className }: { placeId: string; className?: string }) {
+  const photo = photoFor(placeId);
+  if (!photo) return null;
+
+  return (
+    <p className={cn('text-[10.5px] leading-relaxed text-ink-4', className)}>
+      Photo: {photo.author} ·{' '}
+      <a
+        href={photo.source}
+        target="_blank"
+        rel="noreferrer"
+        className="underline decoration-line-strong underline-offset-2 hover:text-ink-3"
+      >
+        {photo.license}
+      </a>{' '}
+      via Wikimedia Commons
+    </p>
   );
 }

@@ -125,7 +125,7 @@ export function ExploreScreen() {
                   return (
                     <Link key={p.id} to={`/place/${p.id}`} className="block">
                       <Card padded={false} className="overflow-hidden">
-                        <PlaceCover seed={p.photoSeed} category={p.category} className="h-[136px]">
+                        <PlaceCover seed={p.photoSeed} category={p.category} placeId={p.id} alt={p.name} className="h-[136px]">
                           <div className="flex items-end justify-between gap-2">
                             <div className="min-w-0">
                               <h3 className="truncate font-display text-[17px] font-extrabold leading-tight text-white">
@@ -190,7 +190,7 @@ export function ExploreScreen() {
                 {rest.map((p) => (
                   <Link key={p.id} to={`/place/${p.id}`}>
                     <Card padded={false} className="h-full overflow-hidden">
-                      <PlaceArt seed={p.photoSeed} category={p.category} className="h-[92px]" />
+                      <PlaceArt seed={p.photoSeed} category={p.category} placeId={p.id} alt={p.name} className="h-[92px]" />
                       <div className="p-2.5">
                         <div className="line-clamp-2 text-[12.5px] font-bold leading-snug text-ink">
                           {p.name}
