@@ -103,7 +103,17 @@ export function LiveMapScreen() {
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
       {/* -------------------------------- map -------------------------------- */}
-      <div className="absolute inset-0">
+      {/*
+        `z-0` is load-bearing, not cosmetic. Leaflet gives its own panes
+        z-index 400-700; with this wrapper left at `z-index: auto` it creates no
+        stacking context, so those panes were hoisted out and compared directly
+        against the chrome's `z-10` — and won. The back button and the bottom
+        sheet were rendered *behind* the map and could not be clicked at all,
+        which left the full-screen map with no way out. `z-0` on a positioned
+        element does establish a stacking context, so Leaflet's z-indexes stay
+        contained inside it.
+      */}
+      <div className="absolute inset-0 z-0">
         <TransitMap
           buses={visible}
           routes={shownRoutes}

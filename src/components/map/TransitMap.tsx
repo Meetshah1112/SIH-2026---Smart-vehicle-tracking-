@@ -8,15 +8,24 @@ import { scoreColorVar } from '@/components/transit/Green';
 /**
  * Map surface.
  *
- * Deliberately monochrome. A transit map has to let four overlays read at once —
- * route lines, vehicles, stops, the user — and a colourful basemap makes that
- * impossible. Carto Positron is used because it is greyscale by design and
- * OSM-derived, matching the SRS's "free, no per-call cost" constraint.
+ * The basemap has to stay quiet enough for four overlays to read at once — route
+ * lines, vehicles, stops, the user — while still showing the road network the
+ * buses actually run on. Carto Positron was quiet but too quiet: zoomed in past
+ * the network view its roads are near-white on white, so a passenger checking
+ * which street their bus is on could not see the street.
+ *
+ * Voyager is the same free OSM-derived Carto CDN but renders a real road
+ * hierarchy. It is toned down in CSS (see `.himgati-tiles` in index.css) rather
+ * than swapped for a greyscale style, because it is the road *geometry* that was
+ * missing, not the colour that was the problem.
  */
 
-const TILE_URL = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+const TILE_URL = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
 const TILE_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
+/** Carto raster tiles are published to z20; going past it just upscales. */
+const MAX_TILE_ZOOM = 20;
 
 /* ------------------------------- markers ---------------------------------- */
 
@@ -289,6 +298,7 @@ export function TransitMap({
     <MapContainer
       center={[initialCenter.lat, initialCenter.lng]}
       zoom={zoom ?? 12}
+      maxZoom={MAX_TILE_ZOOM}
       zoomControl={false}
       attributionControl
       scrollWheelZoom={interactive}
@@ -297,7 +307,13 @@ export function TransitMap({
       className={className}
       style={{ height: '100%', width: '100%' }}
     >
-      <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} maxZoom={19} />
+      <TileLayer
+        url={TILE_URL}
+        attribution={TILE_ATTRIBUTION}
+        maxZoom={MAX_TILE_ZOOM}
+        className="himgati-tiles"
+        detectRetina
+      />
 
       {/* route alignment: a wide soft casing under a crisp line reads clearly
           against both the basemap and the vehicle markers */}
